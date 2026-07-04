@@ -53,8 +53,7 @@ const Login = () => {
   };
 
   return (
-    <div className={loginCss.body}>
-      fdas
+    <div className={loginCss.container}>
       <div className={loginCss.loginContainer}>
         <h1 className={loginCss.h1}>Login</h1>
         <input

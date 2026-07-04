@@ -31,5 +31,4 @@ const getSocket = () => {
     return socket;
 };
 
-getSocket()
 export default getSocket;

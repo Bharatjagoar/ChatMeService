@@ -22,3 +22,6 @@
     justify-content: flex-start;
     align-items: flex-start;
   }
+  body {
+  font-family: 'Inter', 'Segoe UI', Roboto, Arial, sans-serif;
+}

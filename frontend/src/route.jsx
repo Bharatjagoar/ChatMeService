@@ -19,7 +19,7 @@ const Router = () => {
   const socket = getSocket();
   const [isloading, setisloading] = useState(true);
   const MessageRecievedACK = (data, callback) => {
-    console.log("EVENT RECEIVED",data);
+    console.log("EVENT RECEIVED", data);
     try {
       dispatch(addIncomingMessage(data.data));
 
@@ -39,6 +39,7 @@ const Router = () => {
   useEffect(() => {
     dispatch(checkLoginStatus(setisloading));
     console.log("from the Router component");
+    console.log("Router useEffect fired");
 
     if (!socket.connected) {
       socket.on("connect", () => {
