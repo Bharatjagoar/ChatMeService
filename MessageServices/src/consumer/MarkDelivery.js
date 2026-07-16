@@ -1,5 +1,5 @@
-const {getChannel}= require("../config/RabbitMQ");
-const Message = require("../../schema/messageSchema"); // adjust path
+const { getChannel } = require("../config/RabbitMQ");
+const Message = require("../../schema/messageSchema");
 const mongoose = require("mongoose");
 
 const MarkDelivery = async () => {
@@ -9,26 +9,80 @@ const MarkDelivery = async () => {
 
   channel.consume("markdeliver", async (message) => {
     if (!message) return;
-    try {
-      const { userid, replyTo, correlationId } = JSON.parse(
-        message.content.toString(),
-      );
+    const { userid, replyTo } = JSON.parse(message.content.toString());
 
+    if (!mongoose.Types.ObjectId.isValid(userid)) {
+      console.log("invalid userid, discarding:", userid);
+
+      channel.sendToQueue(
+        replyTo,
+        Buffer.from(JSON.stringify({ error: false, messages: [] })),
+      );
+      channel.nack(message, false, false);
+      return;
+    }
+
+    try {
       const messages = await Message.find({
-        recieverID: new mongoose.Types.ObjectId(userid), // ← cast
+        recieverID: new mongoose.Types.ObjectId(userid),
         status: "sent",
       })
         .sort({ createdAt: 1 })
         .limit(100);
-      console.log("here after login from ",userid);
-      channel.sendToQueue(replyTo, Buffer.from(JSON.stringify(messages)), {
-        correlationId,
-      });
 
+      channel.sendToQueue(
+        replyTo,
+        Buffer.from(JSON.stringify({ error: false, messages })),
+      );
       channel.ack(message);
     } catch (error) {
-      console.log("error in marking delivery :- ", error);
-      channel.nack(message, false, false);
+      const isConnectionIssue =
+        error.name === "MongooseServerSelectionError" ||
+        error.name === "MongoNetworkError";
+
+      console.log("error in marking delivery:", error.name, error.message);
+
+      if (!isConnectionIssue) {
+        channel.sendToQueue(
+          replyTo,
+          Buffer.from(JSON.stringify({ error: true, messages: [] })),
+        );
+        channel.nack(message, false, false);
+        return;
+      }
+
+      const deadline = Date.now() + 10000;
+      let success = false;
+
+      while (Date.now() < deadline && !success) {
+        await new Promise((r) => setTimeout(r, 1000));
+        try {
+          const messages = await Message.find({
+            recieverID: new mongoose.Types.ObjectId(userid),
+            status: "sent",
+          })
+            .sort({ createdAt: 1 })
+            .limit(100);
+
+          channel.sendToQueue(
+            replyTo,
+            Buffer.from(JSON.stringify({ error: false, messages })),
+          );
+          channel.ack(message);
+          success = true;
+        } catch (retryError) {
+          console.log("retry failed:", retryError.name);
+        }
+      }
+
+      if (!success) {
+        console.log("gave up after 10s outage for user:", userid);
+        channel.sendToQueue(
+          replyTo,
+          Buffer.from(JSON.stringify({ error: true, messages: [] })),
+        );
+        channel.nack(message, false, false);
+      }
     }
   });
 };
