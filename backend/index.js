@@ -15,6 +15,7 @@ const mongodb = require("./config/mongoose");
 const createQueue = require("./Services/Messaages");
 const { Rabbit_MQ_connection } = require("./config/RabbitMQ");
 const verifyJWT = require("./middleware/verifyJWT");
+const notifySenderDelivered = require("./socket/notifySenderDelivered");
 
 // console.log(process.env.keys)
 
@@ -71,6 +72,7 @@ server.listen(port, async () => {
   console.log(`Server running on port ${port}`);
   // await createQueue();
   await Rabbit_MQ_connection();
+  await notifySenderDelivered(io);
 });
 
 // Export the io instance to use in other modules

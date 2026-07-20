@@ -23,12 +23,11 @@ const Login = () => {
 
       dispatch(LoggedIn(true));
       dispatch(setUserId(data.userId));
-
-      if (!socket.connected) {
-        socket.io.opts.query = { user: data.userId };
-        socket.connect();
+      socket.io.opts.query = { user: data.userId };
+      if (socket.connected) {
+        socket.disconnect();
       }
-
+      socket.connect();
       nav("/message");
     } catch (error) {
       console.log("Login failed", error);

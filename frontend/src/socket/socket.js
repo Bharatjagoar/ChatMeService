@@ -25,7 +25,6 @@ const getSocket = () => {
         socket.on("reconnect_attempt", (attempt) => {
             console.log(`Reconnection attempt ${attempt}`);
         });
-        socket.on("cust")
     }
 
     return socket;

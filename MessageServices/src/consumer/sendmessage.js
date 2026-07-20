@@ -35,7 +35,7 @@ async function MessageSent() {
         time: data.time,
         status: data.status,
       });
-      console.log("✅ Message saved:", savedMessage);
+      // console.log("✅ Message saved:", savedMessage);
 
       let chatDoc = await chatCollectionDB.findOne({ chatId });
 

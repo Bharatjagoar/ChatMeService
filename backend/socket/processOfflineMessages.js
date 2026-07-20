@@ -2,7 +2,7 @@ const { getChannel } = require("../config/RabbitMQ");
 
 const processOfflineMessages = async (userid, socketId, io) => {
   const channel = await getChannel();
-
+  console.log("got into process offline message ", userid);
   const { queue: replyQueue } = await channel.assertQueue("", {
     exclusive: true,
     autoDelete: true,
@@ -47,14 +47,14 @@ const processOfflineMessages = async (userid, socketId, io) => {
     }
 
     let deliveredIds = [];
-    console.log("here from Message service :: ", messages);
 
     await Promise.allSettled(
       messages.map((msgs) => {
+        const { status, __v, ...payload } = msgs;
         return io
           .timeout(5000)
           .to(socketId)
-          .emitWithAck("offlineMessages", msgs)
+          .emitWithAck("offlineMessages", payload)
           .then((resp) => ({ resp, id: msgs._id }));
       }),
     )

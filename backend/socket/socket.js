@@ -1,7 +1,7 @@
 const redis = require("../config/redis");
 const { getChannel } = require("../config/RabbitMQ");
 const { json } = require("body-parser");
-const processOfflineMessages = require("./processOfflineMessages")
+const processOfflineMessages = require("./processOfflineMessages");
 
 module.exports = async (socket, io) => {
   try {
@@ -10,9 +10,10 @@ module.exports = async (socket, io) => {
     if (userid) {
       socket.user = userid;
       await redis.hSet(`socket:${userid}`, "socket", socket.id);
+      console.log("got into process offline message ", userid);
       let res2 = await redis.hGetAll(`socket:${userid}`);
       let channel = await getChannel();
-      await processOfflineMessages(userid,socket.id,io);
+      await processOfflineMessages(userid, socket.id, io);
     } else {
       console.log("no user ID");
     }
@@ -41,8 +42,7 @@ module.exports = async (socket, io) => {
   });
 
   socket.on("getthesocketID-forMessage", async (data, callback) => {
-    console.log("the data we are getting  :: ", data);
-
+    // console.log("the data we are getting  :: ", data);
     try {
       let channel = await getChannel();
       const userid = data.userid;

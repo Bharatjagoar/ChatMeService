@@ -8,7 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { loadConversationMessages, addOutgoingMessage } from "../../../../../redux/chatslice";
+import {
+  loadConversationMessages,
+  addOutgoingMessage,
+} from "../../../../../redux/chatslice";
 
 const ChattingWindow = (user) => {
   const [isanimate, setanimate] = useState(false);
@@ -27,14 +30,15 @@ const ChattingWindow = (user) => {
 
   const currentLoggedinUser = useSelector((state) => {
     console.log(state.WhatsApp);
-    return state.WhatsApp.userId});
-  const currentUsername = useSelector((state =>state.WhatsApp.userName))
+    return state.WhatsApp.userId;
+  });
+  const currentUsername = useSelector((state) => state.WhatsApp.userName);
 
   const chatId = [user.user._id, user.senderId].sort().join("_");
 
   const EMPTY = [];
   const conversations = useSelector(
-    (state) => state.chat.conversations[chatId]?.messages ?? EMPTY
+    (state) => state.chat.conversations[chatId]?.messages ?? EMPTY,
   );
 
   // Reset divider when chat changes
@@ -50,7 +54,12 @@ const ChattingWindow = (user) => {
       try {
         const response = await instance.get(`/getMessages/${chatId}`);
         if (response?.data?.messages) {
-          dispatch(loadConversationMessages({ chatId, messages: response.data.messages }));
+          dispatch(
+            loadConversationMessages({
+              chatId,
+              messages: response.data.messages,
+            }),
+          );
         }
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -66,7 +75,8 @@ const ChattingWindow = (user) => {
     const handleScroll = () => {
       if (!container) return;
       const isAtBottom =
-        container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+        container.scrollHeight - container.scrollTop <=
+        container.clientHeight + 10;
       if (isAtBottom) {
         setShowNewMessageBox(false);
         setNewMessageStartIndex(null);
@@ -83,7 +93,8 @@ const ChattingWindow = (user) => {
     if (!container) return;
 
     const isAtBottom =
-      container.scrollHeight - container.scrollTop <= container.clientHeight + 10;
+      container.scrollHeight - container.scrollTop <=
+      container.clientHeight + 10;
 
     const lastMessage = conversations[conversations.length - 1];
     const isIncoming = lastMessage?.senderId !== currentLoggedinUser;
@@ -92,8 +103,9 @@ const ChattingWindow = (user) => {
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
       clientHeight: container.clientHeight,
-      diff: container.scrollHeight - container.scrollTop - container.clientHeight,
-      isIncoming
+      diff:
+        container.scrollHeight - container.scrollTop - container.clientHeight,
+      isIncoming,
     });
     if (isAtBottom) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -112,6 +124,9 @@ const ChattingWindow = (user) => {
   const logoutBtn = async () => {
     try {
       const respo = await instance.post("/logout");
+      if (socket.connected) {
+        socket.disconnect();
+      }
       nav("/login");
     } catch (error) {
       console.log(error);
@@ -122,7 +137,7 @@ const ChattingWindow = (user) => {
     let id = user.user._id;
     let username = user.user.UserName;
     if (!Message || Message.trim() === "") return;
-    console.log("this is getting you username ::: ",username);
+    console.log("this is getting you username ::: ", username);
     const messageobj = {};
     let { senderId } = user;
     messageobj.senderId = senderId;
@@ -130,13 +145,24 @@ const ChattingWindow = (user) => {
     messageobj.chatId = chatId;
     messageobj.message = Message;
 
-    socket.emit("getthesocketID-forMessage", { userid: id, Message, RecieverUsername:username, id, senderId,senderUsername :currentUsername }, async (data) => {
-      messageobj.time = data.time;
-      messageobj.status = data.status;
-      messageobj.senderUsername = currentUsername;
-      messageobj.receiverusername = username;
-      dispatch(addOutgoingMessage(messageobj));
-    });
+    socket.emit(
+      "getthesocketID-forMessage",
+      {
+        userid: id,
+        Message,
+        RecieverUsername: username,
+        id,
+        senderId,
+        senderUsername: currentUsername,
+      },
+      async (data) => {
+        messageobj.time = data.time;
+        messageobj.status = data.status;
+        messageobj.senderUsername = currentUsername;
+        messageobj.receiverusername = username;
+        dispatch(addOutgoingMessage(messageobj));
+      },
+    );
 
     setMessage("");
     user.removesearchresult("");
@@ -156,7 +182,9 @@ const ChattingWindow = (user) => {
         <button onClick={logoutBtn}>logout</button>
       </div>
 
-      <div className={ChattingWindowCSS.Displaychat} style={{ position: "relative" }}
+      <div
+        className={ChattingWindowCSS.Displaychat}
+        style={{ position: "relative" }}
         ref={messagesContainerRef}
       >
         <div
@@ -165,21 +193,29 @@ const ChattingWindow = (user) => {
         >
           {conversations.map((message, index) => {
             const isMine = message.senderId === currentLoggedinUser;
-            console.log("senderId:", message.senderId, "currentUser:", currentLoggedinUser, "isMine:", isMine);
+            console.log(
+              "senderId:",
+              message.senderId,
+              "currentUser:",
+              currentLoggedinUser,
+              "isMine:",
+              isMine,
+            );
             return (
               <React.Fragment key={message._id || `${message.userid}-${index}`}>
-                
-                <div className={`${ChattingWindowCSS.messageBubble} ${isMine ? ChattingWindowCSS.myMessage : ChattingWindowCSS.otherMessage}`}>
+                <div
+                  className={`${ChattingWindowCSS.messageBubble} ${isMine ? ChattingWindowCSS.myMessage : ChattingWindowCSS.otherMessage}`}
+                >
                   <div className={ChattingWindowCSS.messageText}>
                     {message.message || message.Message || "No message content"}
                   </div>
                   <div className={ChattingWindowCSS.messageTime}>
                     {message.time
                       ? new Date(message.time).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        })
                       : "No time"}
                   </div>
                 </div>
@@ -190,7 +226,7 @@ const ChattingWindow = (user) => {
         </div>
 
         {/* Floating new message banner */}
-        
+
         {/* <div style={{color:'red'}}>{showNewMessageBox ? "SHOW" : "HIDE"}</div> */}
       </div>
 
@@ -199,7 +235,9 @@ const ChattingWindow = (user) => {
           type="text"
           onChange={inputchange}
           value={Message}
-          onKeyDown={(e) => { if (e.key === "Enter") btnclicked(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") btnclicked();
+          }}
           placeholder="type a message"
         />
         <motion.div

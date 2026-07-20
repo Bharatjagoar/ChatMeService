@@ -2,6 +2,25 @@ const { getChannel } = require("../config/RabbitMQ");
 const Message = require("../../schema/messageSchema");
 const mongoose = require("mongoose");
 
+const fetchAndDeliver = async (channel, userid, replyTo, message) => {
+  const messages = await Message.find({
+    recieverID: new mongoose.Types.ObjectId(userid),
+    status: "sent",
+  })
+    .sort({ createdAt: 1 })
+    .limit(100);
+
+  channel.sendToQueue(
+    replyTo,
+    Buffer.from(JSON.stringify({ error: false, messages })),
+  );
+  channel.ack(message);
+};
+
+const isConnectionIssue = (error) =>
+  error.name === "MongooseServerSelectionError" ||
+  error.name === "MongoNetworkError";
+
 const MarkDelivery = async () => {
   console.log("Marking deliveries");
   const channel = await getChannel();
@@ -23,26 +42,11 @@ const MarkDelivery = async () => {
     }
 
     try {
-      const messages = await Message.find({
-        recieverID: new mongoose.Types.ObjectId(userid),
-        status: "sent",
-      })
-        .sort({ createdAt: 1 })
-        .limit(100);
-
-      channel.sendToQueue(
-        replyTo,
-        Buffer.from(JSON.stringify({ error: false, messages })),
-      );
-      channel.ack(message);
+      await fetchAndDeliver(channel, userid, replyTo, message);
     } catch (error) {
-      const isConnectionIssue =
-        error.name === "MongooseServerSelectionError" ||
-        error.name === "MongoNetworkError";
-
       console.log("error in marking delivery:", error.name, error.message);
 
-      if (!isConnectionIssue) {
+      if (!isConnectionIssue(error)) {
         channel.sendToQueue(
           replyTo,
           Buffer.from(JSON.stringify({ error: true, messages: [] })),
@@ -57,21 +61,19 @@ const MarkDelivery = async () => {
       while (Date.now() < deadline && !success) {
         await new Promise((r) => setTimeout(r, 1000));
         try {
-          const messages = await Message.find({
-            recieverID: new mongoose.Types.ObjectId(userid),
-            status: "sent",
-          })
-            .sort({ createdAt: 1 })
-            .limit(100);
-
-          channel.sendToQueue(
-            replyTo,
-            Buffer.from(JSON.stringify({ error: false, messages })),
-          );
-          channel.ack(message);
+          await fetchAndDeliver(channel, userid, replyTo, message);
           success = true;
         } catch (retryError) {
           console.log("retry failed:", retryError.name);
+
+          if (!isConnectionIssue(retryError)) {
+            channel.sendToQueue(
+              replyTo,
+              Buffer.from(JSON.stringify({ error: true, messages: [] })),
+            );
+            channel.nack(message, false, false);
+            return;
+          }
         }
       }
 
