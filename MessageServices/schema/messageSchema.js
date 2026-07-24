@@ -18,6 +18,10 @@ const MessageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
+    clientMessageId: {
+      type: String,
+      required: true,
+    },
     reaction: {
       type: String,
     },
@@ -28,7 +32,7 @@ const MessageSchema = new mongoose.Schema(
       default: "sent"
     }
   },
-  { timestamp: true }
+  { timestamps: true }
 );
 
 const messageModel = mongoose.model("Message", MessageSchema);

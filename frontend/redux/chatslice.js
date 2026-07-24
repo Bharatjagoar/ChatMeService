@@ -36,6 +36,19 @@ const chatSlice = createSlice({
   initialState,
 
   reducers: {
+    messagesDelivered: (state, action) => {
+      const { chatId, messageIds } = action.payload;
+      if (!Array.isArray(messageIds) || messageIds.length === 0) return;
+      const conversation = state.conversations[chatId];
+      if (!conversation) return;
+
+      const idSet = new Set(messageIds);
+      conversation.messages.forEach((msg) => {
+        if (idSet.has(msg.clientMessageId)) {
+          msg.status = "delivered";
+        }
+      });
+    },
     addIncomingMessage: (state, action) => {
       const message = action.payload;
       console.log("from addincoming :: ", action.payload);
@@ -115,6 +128,7 @@ export const {
   addIncomingMessage,
   addOutgoingMessage,
   clearUnreadCount,
+  messagesDelivered,
   loadConversationMessages,
 } = chatSlice.actions;
 

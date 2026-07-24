@@ -55,13 +55,20 @@ const processOfflineMessages = async (userid, socketId, io) => {
           .timeout(5000)
           .to(socketId)
           .emitWithAck("offlineMessages", payload)
-          .then((resp) => ({ resp, id: msgs._id }));
+          .then((resp) => ({
+            resp,
+            id: msgs._id,
+            clientMessageId: msgs.clientMessageId,
+          }));
       }),
     )
       .then((resp) => {
         for (const res of resp) {
           if (res.status == "fulfilled" && res.value.resp?.[0] === true)
-            deliveredIds.push(res.value.id);
+            deliveredIds.push({
+              id: res.value.id,
+              clientMessageId: res.value.clientMessageId,
+            });
         }
       })
       .catch((error) => {
@@ -72,7 +79,7 @@ const processOfflineMessages = async (userid, socketId, io) => {
       await channel.assertQueue("updateDeliveryStatus", { durable: true });
       channel.sendToQueue(
         "updateDeliveryStatus",
-        Buffer.from(JSON.stringify({ ids: deliveredIds })),
+        Buffer.from(JSON.stringify({ deliveries: deliveredIds })),
         { persistent: true },
         (err, ok) => {
           if (err) console.log("error putting message into queue :: ", err);

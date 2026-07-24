@@ -10,7 +10,7 @@ const notifySenderDelivered = async (io) => {
     if (!msg) return;
 
     try {
-      const { senderId, messageIds } = JSON.parse(msg.content.toString());
+      const { senderId, chatId, messageIds } = JSON.parse(msg.content.toString());
       if (!Array.isArray(messageIds)) {
         console.log("malformed messageIds, discarding:", senderId);
         channel.nack(msg, false, false);
@@ -20,7 +20,7 @@ const notifySenderDelivered = async (io) => {
       const socketId = await redis.hGet(`socket:${senderId}`, "socket");
 
       if (socketId && io.sockets.sockets.get(socketId)) {
-        io.to(socketId).emit("messagesDelivered", { messageIds });
+        io.to(socketId).emit("messagesDelivered", { chatId, messageIds });
         console.log(
           `notified sender ${senderId} of ${messageIds.length} delivered messages`,
         );
@@ -54,7 +54,7 @@ const notifySenderDelivered = async (io) => {
       while (Date.now() < deadline && !success) {
         await new Promise((r) => setTimeout(r, 1000));
         try {
-          const { senderId, messageIds } = JSON.parse(msg.content.toString());
+          const { senderId, chatId, messageIds } = JSON.parse(msg.content.toString());
           if (!Array.isArray(messageIds)) {
             console.log("malformed messageIds, discarding:", senderId);
             channel.nack(msg, false, false);
@@ -63,7 +63,7 @@ const notifySenderDelivered = async (io) => {
           const socketId = await redis.hGet(`socket:${senderId}`, "socket");
 
           if (socketId && io.sockets.sockets.get(socketId)) {
-            io.to(socketId).emit("messagesDelivered", { messageIds });
+            io.to(socketId).emit("messagesDelivered", { chatId, messageIds });
             console.log(
               `notified sender ${senderId} of ${messageIds.length} delivered messages`,
             );

@@ -132,18 +132,19 @@ const ChattingWindow = (user) => {
       console.log(error);
     }
   };
-
   const btnclicked = async () => {
     let id = user.user._id;
     let username = user.user.UserName;
     if (!Message || Message.trim() === "") return;
     console.log("this is getting you username ::: ", username);
+    const clientMessageId = crypto.randomUUID();
     const messageobj = {};
     let { senderId } = user;
     messageobj.senderId = senderId;
     messageobj.receiverId = id;
     messageobj.chatId = chatId;
     messageobj.message = Message;
+    messageobj.clientMessageId = clientMessageId;
 
     socket.emit(
       "getthesocketID-forMessage",
@@ -154,6 +155,7 @@ const ChattingWindow = (user) => {
         id,
         senderId,
         senderUsername: currentUsername,
+        clientMessageId,
       },
       async (data) => {
         messageobj.time = data.time;
@@ -167,7 +169,6 @@ const ChattingWindow = (user) => {
     setMessage("");
     user.removesearchresult("");
   };
-
   const inputchange = (e) => setMessage(e.target.value);
 
   return (
@@ -193,14 +194,6 @@ const ChattingWindow = (user) => {
         >
           {conversations.map((message, index) => {
             const isMine = message.senderId === currentLoggedinUser;
-            console.log(
-              "senderId:",
-              message.senderId,
-              "currentUser:",
-              currentLoggedinUser,
-              "isMine:",
-              isMine,
-            );
             return (
               <React.Fragment key={message._id || `${message.userid}-${index}`}>
                 <div
@@ -209,14 +202,24 @@ const ChattingWindow = (user) => {
                   <div className={ChattingWindowCSS.messageText}>
                     {message.message || message.Message || "No message content"}
                   </div>
-                  <div className={ChattingWindowCSS.messageTime}>
-                    {message.time
-                      ? new Date(message.time).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })
-                      : "No time"}
+                  <div className={ChattingWindowCSS.messageMeta}>
+                    <span className={ChattingWindowCSS.messageTime}>
+                      {message.time
+                        ? new Date(message.time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          })
+                        : "No time"}
+                    </span>
+                    {isMine && (
+                      <span className={ChattingWindowCSS.messageTick}>
+                        {message.status === "delivered" ||
+                        message.status === "read"
+                          ? "✓✓"
+                          : "✓"}
+                      </span>
+                    )}
                   </div>
                 </div>
               </React.Fragment>

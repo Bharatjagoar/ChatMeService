@@ -11,7 +11,7 @@ import Message from "./component/message/mesage.jsx";
 import { checkLoginStatus } from "../redux/reducer.js";
 // import { useDispatch } from "react-redux";
 import { useDispatch, useSelector } from "react-redux";
-import { addIncomingMessage } from "../redux/chatslice.js";
+import { addIncomingMessage, messagesDelivered } from "../redux/chatslice.js";
 // import LoadingPage from "./loadingComponent.jsx";
 
 const Router = () => {
@@ -19,7 +19,7 @@ const Router = () => {
   const socket = getSocket();
   const [isloading, setisloading] = useState(true);
   const MessageRecievedACK = (data, callback) => {
-    console.log("EVENT RECEIVED",data);
+    console.log("EVENT RECEIVED", data);
     try {
       dispatch(addIncomingMessage(data.data));
 
@@ -32,9 +32,17 @@ const Router = () => {
     }
   };
   const OfflineMessages = (data, callback) => {
-    //testing what i am getting in data
-    console.log("data from async :: ", data);
-    callback(true);
+    try {
+      dispatch(addIncomingMessage({ ...data, id: data.recieverID }));
+      callback(true);
+    } catch (err) {
+      console.log("failed to process offline message", err);
+      callback(false);
+    }
+  };
+  const MessagesDeliveredHandler = (data) => {
+    console.log("messagesDelivered received:", data);
+    dispatch(messagesDelivered(data));
   };
   useEffect(() => {
     dispatch(checkLoginStatus(setisloading));
@@ -47,17 +55,22 @@ const Router = () => {
         socket.on("MessageRecieved", MessageRecievedACK);
         socket.off("offlineMessages", OfflineMessages);
         socket.on("offlineMessages", OfflineMessages);
+        socket.off("messagesDelivered", MessagesDeliveredHandler);
+        socket.on("messagesDelivered", MessagesDeliveredHandler);
       });
     } else {
       socket.off("MessageRecieved", MessageRecievedACK);
       socket.on("MessageRecieved", MessageRecievedACK);
       socket.off("offlineMessages", OfflineMessages);
       socket.on("offlineMessages", OfflineMessages);
+      socket.off("messagesDelivered", MessagesDeliveredHandler);
+      socket.on("messagesDelivered", MessagesDeliveredHandler);
     }
 
     return () => {
       socket.off("MessageRecieved", MessageRecievedACK);
       socket.off("offlineMessages", OfflineMessages);
+      socket.off("messagesDelivered", MessagesDeliveredHandler);
     };
   }, [dispatch]);
 

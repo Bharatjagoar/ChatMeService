@@ -10,14 +10,19 @@ const updateDeliveryStatus = async () => {
   channel.consume("updateDeliveryStatus", async (msg) => {
     if (!msg) return;
 
+    const { deliveries } = JSON.parse(msg.content.toString());
+
+    if (!Array.isArray(deliveries) || deliveries.length === 0) {
+      channel.ack(msg);
+      return;
+    }
+
+    const ids = deliveries.map((d) => d.id);
+    const clientIdByMongoId = new Map(
+      deliveries.map((d) => [d.id, d.clientMessageId]),
+    );
+
     try {
-      const { ids } = JSON.parse(msg.content.toString());
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-        channel.ack(msg);
-        return;
-      }
-
       // Option A: update first, so we never notify about a change that didn't persist
       await messagedb.updateMany(
         { _id: { $in: ids } },
@@ -26,31 +31,27 @@ const updateDeliveryStatus = async () => {
 
       console.log("done updating message status for", ids.length, "messages");
 
-      // fetch senders for the messages we just marked delivered
       const deliveredMessages = await messagedb.find(
         { _id: { $in: ids } },
-        { senderID: 1 },
+        { senderId: 1, chatId: 1 },
       );
 
-      // group message IDs by sender — one notification per sender, not per message
       const bySender = {};
       for (const m of deliveredMessages) {
-        if (!m.senderID) {
-          console.log(
-            "BUG: delivered message missing senderID:",
-            m._id.toString(),
-          );
+        if (!m.senderId) {
+          console.log("BUG: delivered message missing senderId:", m._id.toString());
           continue;
         }
-        const senderId = m.senderID.toString();
-        if (!bySender[senderId]) bySender[senderId] = [];
-        bySender[senderId].push(m._id.toString());
+        const senderId = m.senderId.toString();
+        const clientMessageId = clientIdByMongoId.get(m._id.toString());
+        if (!bySender[senderId]) bySender[senderId] = { chatId: m.chatId, messageIds: [] };
+        bySender[senderId].messageIds.push(clientMessageId);
       }
 
-      for (const [senderId, messageIds] of Object.entries(bySender)) {
+      for (const [senderId, { chatId, messageIds }] of Object.entries(bySender)) {
         channel.sendToQueue(
           "notifySenderDelivered",
-          Buffer.from(JSON.stringify({ senderId, messageIds })),
+          Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),
           { persistent: true },
         );
       }
@@ -63,7 +64,69 @@ const updateDeliveryStatus = async () => {
 
       console.log("error updating delivery status:", error.name, error.message);
 
-      channel.nack(msg, false, isConnectionIssue);
+      if (!isConnectionIssue) {
+        channel.nack(msg, false, false);
+        return;
+      }
+
+      const deadline = Date.now() + 10000;
+      let success = false;
+
+      while (Date.now() < deadline && !success) {
+        await new Promise((r) => setTimeout(r, 1000));
+        try {
+          await messagedb.updateMany(
+            { _id: { $in: ids } },
+            { $set: { status: "delivered" } },
+          );
+
+          console.log("done updating message status for", ids.length, "messages (after retry)");
+
+          const deliveredMessages = await messagedb.find(
+            { _id: { $in: ids } },
+            { senderId: 1, chatId: 1 },
+          );
+
+          const bySender = {};
+          for (const m of deliveredMessages) {
+            if (!m.senderId) {
+              console.log("BUG: delivered message missing senderId:", m._id.toString());
+              continue;
+            }
+            const senderId = m.senderId.toString();
+            const clientMessageId = clientIdByMongoId.get(m._id.toString());
+            if (!bySender[senderId]) bySender[senderId] = { chatId: m.chatId, messageIds: [] };
+            bySender[senderId].messageIds.push(clientMessageId);
+          }
+
+          for (const [senderId, { chatId, messageIds }] of Object.entries(bySender)) {
+            channel.sendToQueue(
+              "notifySenderDelivered",
+              Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),
+              { persistent: true },
+            );
+          }
+
+          channel.ack(msg);
+          success = true;
+        } catch (retryError) {
+          const stillConnectionIssue =
+            retryError.name === "MongooseServerSelectionError" ||
+            retryError.name === "MongoNetworkError";
+
+          console.log("retry failed:", retryError.name);
+
+          if (!stillConnectionIssue) {
+            channel.nack(msg, false, false);
+            return;
+          }
+        }
+      }
+
+      if (!success) {
+        console.log("gave up after 10s outage, requeuing");
+        channel.nack(msg, false, true);
+      }
     }
   });
 };
