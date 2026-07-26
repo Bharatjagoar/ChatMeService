@@ -74,6 +74,23 @@ const chatSlice = createSlice({
       state.conversations[chatId].unreadCount += 1;
     },
 
+    updateMessageStatus: (state, action) => {
+      const { chatId, clientMessageId, status, time } = action.payload;
+      const conversation = state.conversations[chatId];
+      if (!conversation) return;
+
+      const msg = conversation.messages.find(
+        (m) => m.clientMessageId === clientMessageId,
+      );
+      if (!msg) return;
+
+      const rank = { sending: 0, error: 0, sent: 1, delivered: 2, read: 3 };
+      if ((rank[status] ?? 0) < (rank[msg.status] ?? 0)) return;
+
+      msg.status = status;
+      if (time) msg.time = time;
+    },
+
     addOutgoingMessage: (state, action) => {
       const message = action.payload;
       console.log("hellow from ", action.payload);
@@ -127,6 +144,7 @@ const chatSlice = createSlice({
 export const {
   addIncomingMessage,
   addOutgoingMessage,
+  updateMessageStatus,
   clearUnreadCount,
   messagesDelivered,
   loadConversationMessages,

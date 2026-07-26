@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   loadConversationMessages,
   addOutgoingMessage,
+  updateMessageStatus,
 } from "../../../../../redux/chatslice";
 
 const ChattingWindow = (user) => {
@@ -136,16 +137,23 @@ const ChattingWindow = (user) => {
     let id = user.user._id;
     let username = user.user.UserName;
     if (!Message || Message.trim() === "") return;
-    console.log("this is getting you username ::: ", username);
     const clientMessageId = crypto.randomUUID();
-    const messageobj = {};
     let { senderId } = user;
-    messageobj.senderId = senderId;
-    messageobj.receiverId = id;
-    messageobj.chatId = chatId;
-    messageobj.message = Message;
-    messageobj.clientMessageId = clientMessageId;
 
+    const messageobj = {
+      senderId,
+      receiverId: id,
+      chatId,
+      message: Message,
+      clientMessageId,
+      time: new Date(),
+      status: "sending",
+      senderUsername: currentUsername,
+      receiverusername: username,
+    };
+
+    // Render immediately with a clock icon; don't wait on the round-trip.
+    dispatch(addOutgoingMessage(messageobj));
     socket.emit(
       "getthesocketID-forMessage",
       {
@@ -157,12 +165,15 @@ const ChattingWindow = (user) => {
         senderUsername: currentUsername,
         clientMessageId,
       },
-      async (data) => {
-        messageobj.time = data.time;
-        messageobj.status = data.status;
-        messageobj.senderUsername = currentUsername;
-        messageobj.receiverusername = username;
-        dispatch(addOutgoingMessage(messageobj));
+      (data) => {
+        dispatch(
+          updateMessageStatus({
+            chatId,
+            clientMessageId,
+            status: data.status,
+            time: data.time,
+          }),
+        );
       },
     );
 
@@ -213,11 +224,121 @@ const ChattingWindow = (user) => {
                         : "No time"}
                     </span>
                     {isMine && (
-                      <span className={ChattingWindowCSS.messageTick}>
-                        {message.status === "delivered" ||
-                        message.status === "read"
-                          ? "✓✓"
-                          : "✓"}
+                      <span
+                        className={`${ChattingWindowCSS.messageTick} ${
+                          message.status === "error"
+                            ? ChattingWindowCSS.tickError
+                            : message.status === "delivered" ||
+                                message.status === "read"
+                              ? ChattingWindowCSS.tickDelivered
+                              : ChattingWindowCSS.tickSent
+                        }`}
+                        title={
+                          message.status === "error"
+                            ? "Failed to send message"
+                            : message.status === "sending"
+                              ? "Sending…"
+                              : message.status === "delivered" ||
+                                  message.status === "read"
+                                ? "Delivered"
+                                : "Sent"
+                        }
+                      >
+                        {message.status === "sending" && (
+                          <svg
+                            viewBox="0 0 16 16"
+                            className={ChattingWindowCSS.tickSvg}
+                          >
+                            <circle
+                              cx="8"
+                              cy="8"
+                              r="6.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.2"
+                            />
+                            <path
+                              d="M8 4.5V8l2.5 1.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+
+                        {message.status === "sent" && (
+                          <svg
+                            viewBox="0 0 16 11"
+                            className={ChattingWindowCSS.tickSvg}
+                          >
+                            <path
+                              d="M1 5.5L5 10 15 1"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+
+                        {(message.status === "delivered" ||
+                          message.status === "read") && (
+                          <svg
+                            viewBox="0 0 20 11"
+                            className={ChattingWindowCSS.tickSvg}
+                          >
+                            <path
+                              d="M1 5.5L5 10 15 1"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M6 5.5L10 10 20 1"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+
+                        {message.status === "error" && (
+                          <svg
+                            viewBox="0 0 16 16"
+                            className={ChattingWindowCSS.tickSvg}
+                          >
+                            <circle
+                              cx="8"
+                              cy="8"
+                              r="7"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.2"
+                            />
+                            <line
+                              x1="8"
+                              y1="4.5"
+                              x2="8"
+                              y2="8.5"
+                              stroke="currentColor"
+                              strokeWidth="1.4"
+                              strokeLinecap="round"
+                            />
+                            <circle
+                              cx="8"
+                              cy="11"
+                              r="0.9"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        )}
                       </span>
                     )}
                   </div>

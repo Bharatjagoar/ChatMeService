@@ -6,7 +6,7 @@ async function ReadConversations() {
   console.log("here inside the Read convo");
 
   await channel.assertQueue("ReadConvos", { durable: false });
-
+  channel.prefetch(20);
   channel.consume("ReadConvos", async (mes) => {
     if (!mes) return;
 
@@ -27,11 +27,9 @@ async function ReadConversations() {
 
       const res = JSON.stringify({ resultArr });
 
-      channel.sendToQueue(
-        mes.properties.replyTo,
-        Buffer.from(res),
-        { correlationId: mes.properties.correlationId }
-      );
+      channel.sendToQueue(mes.properties.replyTo, Buffer.from(res), {
+        correlationId: mes.properties.correlationId,
+      });
 
       channel.ack(mes);
     } catch (error) {

@@ -6,11 +6,14 @@ const notifySenderDelivered = async (io) => {
   const channel = await getChannel();
   await channel.assertQueue("notifySenderDelivered", { durable: true });
 
+  channel.prefetch(15);
   channel.consume("notifySenderDelivered", async (msg) => {
     if (!msg) return;
 
     try {
-      const { senderId, chatId, messageIds } = JSON.parse(msg.content.toString());
+      const { senderId, chatId, messageIds } = JSON.parse(
+        msg.content.toString(),
+      );
       if (!Array.isArray(messageIds)) {
         console.log("malformed messageIds, discarding:", senderId);
         channel.nack(msg, false, false);
@@ -54,7 +57,9 @@ const notifySenderDelivered = async (io) => {
       while (Date.now() < deadline && !success) {
         await new Promise((r) => setTimeout(r, 1000));
         try {
-          const { senderId, chatId, messageIds } = JSON.parse(msg.content.toString());
+          const { senderId, chatId, messageIds } = JSON.parse(
+            msg.content.toString(),
+          );
           if (!Array.isArray(messageIds)) {
             console.log("malformed messageIds, discarding:", senderId);
             channel.nack(msg, false, false);

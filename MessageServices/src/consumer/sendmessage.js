@@ -53,7 +53,7 @@ async function MessageSent() {
   console.log("from message sent");
   const channel = await getChannel();
   await channel.assertQueue("messageSent", { durable: false });
-
+  channel.prefetch(10);
   channel.consume("messageSent", async (message) => {
     if (!message) return;
 
@@ -71,7 +71,11 @@ async function MessageSent() {
       await persistMessage(data);
       channel.ack(message);
     } catch (error) {
-      console.error("❌ Error in MessageSent consumer:", error.name, error.message);
+      console.error(
+        "❌ Error in MessageSent consumer:",
+        error.name,
+        error.message,
+      );
 
       if (!isConnectionIssue(error)) {
         channel.nack(message, false, false);

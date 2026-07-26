@@ -6,7 +6,7 @@ const updateDeliveryStatus = async () => {
   const channel = await getChannel();
   await channel.assertQueue("updateDeliveryStatus", { durable: true });
   await channel.assertQueue("notifySenderDelivered", { durable: true });
-
+  channel.prefetch(5);
   channel.consume("updateDeliveryStatus", async (msg) => {
     if (!msg) return;
 
@@ -39,16 +39,22 @@ const updateDeliveryStatus = async () => {
       const bySender = {};
       for (const m of deliveredMessages) {
         if (!m.senderId) {
-          console.log("BUG: delivered message missing senderId:", m._id.toString());
+          console.log(
+            "BUG: delivered message missing senderId:",
+            m._id.toString(),
+          );
           continue;
         }
         const senderId = m.senderId.toString();
         const clientMessageId = clientIdByMongoId.get(m._id.toString());
-        if (!bySender[senderId]) bySender[senderId] = { chatId: m.chatId, messageIds: [] };
+        if (!bySender[senderId])
+          bySender[senderId] = { chatId: m.chatId, messageIds: [] };
         bySender[senderId].messageIds.push(clientMessageId);
       }
 
-      for (const [senderId, { chatId, messageIds }] of Object.entries(bySender)) {
+      for (const [senderId, { chatId, messageIds }] of Object.entries(
+        bySender,
+      )) {
         channel.sendToQueue(
           "notifySenderDelivered",
           Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),
@@ -80,7 +86,11 @@ const updateDeliveryStatus = async () => {
             { $set: { status: "delivered" } },
           );
 
-          console.log("done updating message status for", ids.length, "messages (after retry)");
+          console.log(
+            "done updating message status for",
+            ids.length,
+            "messages (after retry)",
+          );
 
           const deliveredMessages = await messagedb.find(
             { _id: { $in: ids } },
@@ -90,16 +100,22 @@ const updateDeliveryStatus = async () => {
           const bySender = {};
           for (const m of deliveredMessages) {
             if (!m.senderId) {
-              console.log("BUG: delivered message missing senderId:", m._id.toString());
+              console.log(
+                "BUG: delivered message missing senderId:",
+                m._id.toString(),
+              );
               continue;
             }
             const senderId = m.senderId.toString();
             const clientMessageId = clientIdByMongoId.get(m._id.toString());
-            if (!bySender[senderId]) bySender[senderId] = { chatId: m.chatId, messageIds: [] };
+            if (!bySender[senderId])
+              bySender[senderId] = { chatId: m.chatId, messageIds: [] };
             bySender[senderId].messageIds.push(clientMessageId);
           }
 
-          for (const [senderId, { chatId, messageIds }] of Object.entries(bySender)) {
+          for (const [senderId, { chatId, messageIds }] of Object.entries(
+            bySender,
+          )) {
             channel.sendToQueue(
               "notifySenderDelivered",
               Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),

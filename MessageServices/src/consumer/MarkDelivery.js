@@ -25,6 +25,7 @@ const MarkDelivery = async () => {
   console.log("Marking deliveries");
   const channel = await getChannel();
   channel.assertQueue("markdeliver", { durable: true });
+  channel.prefetch(10);
 
   channel.consume("markdeliver", async (message) => {
     if (!message) return;

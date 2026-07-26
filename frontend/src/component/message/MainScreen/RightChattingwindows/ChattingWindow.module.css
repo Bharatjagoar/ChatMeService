@@ -182,9 +182,57 @@
 
 /* Timestamp */
 .messageTime {
-    font-size: 11px;
+    font-size: clamp(10px, 2.6vw, 11px);
     color: rgba(0, 0, 0, 0.5);
     align-self: flex-end;
+}
+
+.messageMeta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.messageTick {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    flex-shrink: 0;
+}
+
+.tickSvg {
+    width: clamp(14px, 3.6vw, 16px);
+    height: clamp(10px, 2.6vw, 11px);
+    display: block;
+}
+
+/* Sent: single grey check */
+.tickSent {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+/* Delivered: double check, slightly darker grey (blue reserved for future "read") */
+.tickDelivered {
+    color: rgba(0, 0, 0, 0.55);
+}
+
+.tickDelivered .tickSvg {
+    width: clamp(17px, 4.4vw, 19px);
+}
+
+/* Error: red exclamation, hoverable via native title tooltip */
+.tickError {
+    color: #d32f2f;
+    cursor: default;
+}
+
+@media (max-width: 480px) {
+    .messageTick {
+        transform: scale(0.92);
+    }
 }
 
 .newMessageDivider {

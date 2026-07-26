@@ -6,7 +6,7 @@ async function ReadConvo() {
 
   await channel.assertQueue("SendChatId", { durable: false });
   await channel.assertQueue("ReadfromDBMessages", { durable: false });
-
+  channel.prefetch(20);
   channel.consume("SendChatId", async (msg) => {
     if (!msg) return;
 
@@ -15,12 +15,14 @@ async function ReadConvo() {
       const ChatId = JSON.parse(msg.content.toString());
       console.log(ChatId, msg.properties.correlationId, msg.properties.replyTo);
 
-      const messages = await messagedb.find({ chatId: ChatId.id }).sort({ createdAt: -1 });
+      const messages = await messagedb
+        .find({ chatId: ChatId.id })
+        .sort({ createdAt: -1 });
 
       channel.sendToQueue(
         msg.properties.replyTo,
         Buffer.from(JSON.stringify({ messages })),
-        { correlationId: msg.properties.correlationId }
+        { correlationId: msg.properties.correlationId },
       );
 
       channel.ack(msg);
