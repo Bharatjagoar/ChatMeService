@@ -140,8 +140,10 @@ const updateDeliveryStatus = async () => {
       }
 
       if (!success) {
-        console.log("gave up after 10s outage, requeuing");
-        channel.nack(msg, false, true);
+        console.log(
+          "gave up after 10s outage, dropping (will reconcile on next reconnect)",
+        );
+        channel.nack(msg, false, false);
       }
     }
   });

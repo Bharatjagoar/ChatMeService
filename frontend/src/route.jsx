@@ -44,21 +44,25 @@ const Router = () => {
     console.log("messagesDelivered received:", data);
     dispatch(messagesDelivered(data));
   };
+
+  const ConnectHandler = () => {
+    console.log("connection request from router dom 😅😅😅😅😅");
+    socket.off("MessageRecieved", MessageRecievedACK);
+    socket.on("MessageRecieved", MessageRecievedACK);
+    socket.off("offlineMessages", OfflineMessages);
+    socket.on("offlineMessages", OfflineMessages);
+    socket.off("messagesDelivered", MessagesDeliveredHandler);
+    socket.on("messagesDelivered", MessagesDeliveredHandler);
+  };
+
   useEffect(() => {
     dispatch(checkLoginStatus(setisloading));
     console.log("from the Router component");
 
-    if (!socket.connected) {
-      socket.on("connect", () => {
-        console.log("connection request from router dom 😅😅😅😅😅");
-        socket.off("MessageRecieved", MessageRecievedACK);
-        socket.on("MessageRecieved", MessageRecievedACK);
-        socket.off("offlineMessages", OfflineMessages);
-        socket.on("offlineMessages", OfflineMessages);
-        socket.off("messagesDelivered", MessagesDeliveredHandler);
-        socket.on("messagesDelivered", MessagesDeliveredHandler);
-      });
-    } else {
+    socket.off("connect", ConnectHandler);
+    socket.on("connect", ConnectHandler);
+
+    if (socket.connected) {
       socket.off("MessageRecieved", MessageRecievedACK);
       socket.on("MessageRecieved", MessageRecievedACK);
       socket.off("offlineMessages", OfflineMessages);
@@ -68,6 +72,7 @@ const Router = () => {
     }
 
     return () => {
+      socket.off("connect", ConnectHandler);
       socket.off("MessageRecieved", MessageRecievedACK);
       socket.off("offlineMessages", OfflineMessages);
       socket.off("messagesDelivered", MessagesDeliveredHandler);
