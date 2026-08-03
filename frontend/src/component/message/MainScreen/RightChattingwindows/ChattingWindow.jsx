@@ -154,25 +154,6 @@ const ChattingWindow = (user) => {
 
     // Render immediately with a clock icon; don't wait on the round-trip.
     dispatch(addOutgoingMessage(messageobj));
-
-    let settled = false;
-
-    // If the server never calls back at all (socket dropped mid-request,
-    // server crashed, etc.), don't leave the message stuck on the clock
-    // icon forever. This is intentionally longer than the backend's own
-    // 5s io.timeout so we don't race a legitimate in-flight response.
-    const ackTimeout = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      dispatch(
-        updateMessageStatus({
-          chatId,
-          clientMessageId,
-          status: "error",
-        }),
-      );
-    }, 8000);
-
     socket.emit(
       "getthesocketID-forMessage",
       {
@@ -185,9 +166,6 @@ const ChattingWindow = (user) => {
         clientMessageId,
       },
       (data) => {
-        if (settled) return; // timeout already fired, ignore late response
-        settled = true;
-        clearTimeout(ackTimeout);
         dispatch(
           updateMessageStatus({
             chatId,
@@ -250,20 +228,22 @@ const ChattingWindow = (user) => {
                         className={`${ChattingWindowCSS.messageTick} ${
                           message.status === "error"
                             ? ChattingWindowCSS.tickError
-                            : message.status === "delivered" ||
-                                message.status === "read"
-                              ? ChattingWindowCSS.tickDelivered
-                              : ChattingWindowCSS.tickSent
+                            : message.status === "read"
+                              ? ChattingWindowCSS.tickRead
+                              : message.status === "delivered"
+                                ? ChattingWindowCSS.tickDelivered
+                                : ChattingWindowCSS.tickSent
                         }`}
                         title={
                           message.status === "error"
                             ? "Failed to send message"
                             : message.status === "sending"
                               ? "Sending…"
-                              : message.status === "delivered" ||
-                                  message.status === "read"
-                                ? "Delivered"
-                                : "Sent"
+                              : message.status === "read"
+                                ? "Read"
+                                : message.status === "delivered"
+                                  ? "Delivered"
+                                  : "Sent"
                         }
                       >
                         {message.status === "sending" && (

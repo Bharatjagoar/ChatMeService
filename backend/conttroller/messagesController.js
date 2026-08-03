@@ -3,20 +3,26 @@ const { getChannel } = require("../config/RabbitMQ");
 const { v4: uuidv4 } = require("uuid");
 const Userdb = require("../schema/userSchema");
 
-
 module.exports.Readmessage = async (req, res) => {
   const channel = await getChannel();
   const correlationId = uuidv4();
 
   await channel.assertQueue("ReadConvos", { durable: false });
-  const q = await channel.assertQueue("", { exclusive: true, autoDelete: true });
+  const q = await channel.assertQueue("", {
+    exclusive: true,
+    autoDelete: true,
+  });
   const reply = q.queue;
 
-  channel.sendToQueue("ReadConvos", Buffer.from(JSON.stringify({ id: req.params.id })), {
-    correlationId,
-    replyTo: reply,
-  });
-// consumerTag
+  channel.sendToQueue(
+    "ReadConvos",
+    Buffer.from(JSON.stringify({ id: req.params.id })),
+    {
+      correlationId,
+      replyTo: reply,
+    },
+  );
+  // consumerTag
   const tag = await channel.consume(reply, async (Message) => {
     if (Message.properties.correlationId !== correlationId) return;
 
@@ -32,8 +38,8 @@ module.exports.Readmessage = async (req, res) => {
       const participant = await Userdb.findById(participantId);
       resarr.push({ ...element, participant });
     }
-    console.log(resarr)
-    
+    console.log(resarr);
+
     res.send(resarr);
     channel.ack(Message);
     await channel.cancel(tag.consumerTag);
@@ -64,4 +70,21 @@ module.exports.ReadConvo = async (req, res) => {
     }
   });
   // res.send("hellow  world");
+};
+
+module.exports.MarkAsRead = async (req, res) => {
+  const channel = await getChannel();
+  const receiverId = req.user.id; // trusted, from JWT
+  const { chatId } = req.params;
+  const { otherUserId } = req.body;
+
+  await channel.assertQueue("markAsRead", { durable: true });
+
+  channel.sendToQueue(
+    "markAsRead",
+    Buffer.from(JSON.stringify({ chatId, receiverId, otherUserId })),
+    { persistent: true },
+  );
+
+  res.status(200).json({ message: "marking as read" });
 };

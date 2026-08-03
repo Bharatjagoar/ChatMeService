@@ -49,6 +49,20 @@ const chatSlice = createSlice({
         }
       });
     },
+    messagesRead: (state, action) => {
+      const { chatId, currentUserId } = action.payload;
+      const conversation = state.conversations[chatId];
+      if (!conversation) return;
+
+      conversation.messages.forEach((msg) => {
+        if (
+          msg.senderId === currentUserId &&
+          (msg.status === "sent" || msg.status === "delivered")
+        ) {
+          msg.status = "read";
+        }
+      });
+    },
     addIncomingMessage: (state, action) => {
       const message = action.payload;
       console.log("from addincoming :: ", action.payload);
@@ -147,6 +161,7 @@ export const {
   updateMessageStatus,
   clearUnreadCount,
   messagesDelivered,
+  messagesRead,
   loadConversationMessages,
 } = chatSlice.actions;
 

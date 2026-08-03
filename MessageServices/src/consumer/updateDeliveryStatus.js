@@ -1,6 +1,44 @@
 const { getChannel } = require("../config/RabbitMQ");
 const messagedb = require("../../schema/messageSchema");
 
+// Does the actual work: mark messages delivered in Mongo, then queue a
+// notify message per affected sender. Called from both the initial try
+// and the retry loop so the logic only exists once.
+async function applyDeliveryUpdate(ids, clientIdByMongoId, channel) {
+  await messagedb.updateMany(
+    { _id: { $in: ids } },
+    { $set: { status: "delivered" } },
+  );
+
+  const deliveredMessages = await messagedb.find(
+    { _id: { $in: ids } },
+    { senderId: 1, chatId: 1 },
+  );
+
+  const bySender = {};
+  for (const m of deliveredMessages) {
+    if (!m.senderId) {
+      console.log("BUG: delivered message missing senderId:", m._id.toString());
+      continue;
+    }
+    const senderId = m.senderId.toString();
+    const clientMessageId = clientIdByMongoId.get(m._id.toString());
+    if (!bySender[senderId])
+      bySender[senderId] = { chatId: m.chatId, messageIds: [] };
+    bySender[senderId].messageIds.push(clientMessageId);
+  }
+
+  for (const [senderId, { chatId, messageIds }] of Object.entries(bySender)) {
+    channel.sendToQueue(
+      "notifySenderDelivered",
+      Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),
+      { persistent: true },
+    );
+  }
+
+  return deliveredMessages.length;
+}
+
 const updateDeliveryStatus = async () => {
   console.log("Updating message status started");
   const channel = await getChannel();
@@ -24,44 +62,8 @@ const updateDeliveryStatus = async () => {
 
     try {
       // Option A: update first, so we never notify about a change that didn't persist
-      await messagedb.updateMany(
-        { _id: { $in: ids } },
-        { $set: { status: "delivered" } },
-      );
-
-      console.log("done updating message status for", ids.length, "messages");
-
-      const deliveredMessages = await messagedb.find(
-        { _id: { $in: ids } },
-        { senderId: 1, chatId: 1 },
-      );
-
-      const bySender = {};
-      for (const m of deliveredMessages) {
-        if (!m.senderId) {
-          console.log(
-            "BUG: delivered message missing senderId:",
-            m._id.toString(),
-          );
-          continue;
-        }
-        const senderId = m.senderId.toString();
-        const clientMessageId = clientIdByMongoId.get(m._id.toString());
-        if (!bySender[senderId])
-          bySender[senderId] = { chatId: m.chatId, messageIds: [] };
-        bySender[senderId].messageIds.push(clientMessageId);
-      }
-
-      for (const [senderId, { chatId, messageIds }] of Object.entries(
-        bySender,
-      )) {
-        channel.sendToQueue(
-          "notifySenderDelivered",
-          Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),
-          { persistent: true },
-        );
-      }
-
+      const count = await applyDeliveryUpdate(ids, clientIdByMongoId, channel);
+      console.log("done updating message status for", count, "messages");
       channel.ack(msg);
     } catch (error) {
       const isConnectionIssue =
@@ -81,48 +83,16 @@ const updateDeliveryStatus = async () => {
       while (Date.now() < deadline && !success) {
         await new Promise((r) => setTimeout(r, 1000));
         try {
-          await messagedb.updateMany(
-            { _id: { $in: ids } },
-            { $set: { status: "delivered" } },
+          const count = await applyDeliveryUpdate(
+            ids,
+            clientIdByMongoId,
+            channel,
           );
-
           console.log(
             "done updating message status for",
-            ids.length,
+            count,
             "messages (after retry)",
           );
-
-          const deliveredMessages = await messagedb.find(
-            { _id: { $in: ids } },
-            { senderId: 1, chatId: 1 },
-          );
-
-          const bySender = {};
-          for (const m of deliveredMessages) {
-            if (!m.senderId) {
-              console.log(
-                "BUG: delivered message missing senderId:",
-                m._id.toString(),
-              );
-              continue;
-            }
-            const senderId = m.senderId.toString();
-            const clientMessageId = clientIdByMongoId.get(m._id.toString());
-            if (!bySender[senderId])
-              bySender[senderId] = { chatId: m.chatId, messageIds: [] };
-            bySender[senderId].messageIds.push(clientMessageId);
-          }
-
-          for (const [senderId, { chatId, messageIds }] of Object.entries(
-            bySender,
-          )) {
-            channel.sendToQueue(
-              "notifySenderDelivered",
-              Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),
-              { persistent: true },
-            );
-          }
-
           channel.ack(msg);
           success = true;
         } catch (retryError) {

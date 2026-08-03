@@ -18,6 +18,7 @@ Router.post("/checkUserName", UserController.checkUserName);
 Router.post("/SearchString", UserController.Searchstring);
 Router.get("/LoadConversation/:id", messagesController.Readmessage);
 Router.get("/getMessages/:ChatId", messagesController.ReadConvo);
+Router.post("/markAsRead/:chatId", verifyJWT, messagesController.MarkAsRead);
 
 Router.get("/me", verifyJWT, (req, res) => {
   res.json({ userId: req.user.id, UserName: req.user.UserName });

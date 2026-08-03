@@ -11,12 +11,17 @@ import Message from "./component/message/mesage.jsx";
 import { checkLoginStatus } from "../redux/reducer.js";
 // import { useDispatch } from "react-redux";
 import { useDispatch, useSelector } from "react-redux";
-import { addIncomingMessage, messagesDelivered } from "../redux/chatslice.js";
+import {
+  addIncomingMessage,
+  messagesDelivered,
+  messagesRead,
+} from "../redux/chatslice.js";
 // import LoadingPage from "./loadingComponent.jsx";
 
 const Router = () => {
   const dispatch = useDispatch();
   const socket = getSocket();
+  const currentLoggedinUser = useSelector((state) => state.WhatsApp.userId);
   const [isloading, setisloading] = useState(true);
   const MessageRecievedACK = (data, callback) => {
     console.log("EVENT RECEIVED", data);
@@ -45,6 +50,11 @@ const Router = () => {
     dispatch(messagesDelivered(data));
   };
 
+  const MessagesReadHandler = (data) => {
+    console.log("messagesRead received:", data);
+    dispatch(messagesRead({ ...data, currentUserId: currentLoggedinUser }));
+  };
+
   const ConnectHandler = () => {
     console.log("connection request from router dom 😅😅😅😅😅");
     socket.off("MessageRecieved", MessageRecievedACK);
@@ -53,6 +63,8 @@ const Router = () => {
     socket.on("offlineMessages", OfflineMessages);
     socket.off("messagesDelivered", MessagesDeliveredHandler);
     socket.on("messagesDelivered", MessagesDeliveredHandler);
+    socket.off("messagesRead", MessagesReadHandler);
+    socket.on("messagesRead", MessagesReadHandler);
   };
 
   useEffect(() => {
@@ -69,6 +81,8 @@ const Router = () => {
       socket.on("offlineMessages", OfflineMessages);
       socket.off("messagesDelivered", MessagesDeliveredHandler);
       socket.on("messagesDelivered", MessagesDeliveredHandler);
+      socket.off("messagesRead", MessagesReadHandler);
+      socket.on("messagesRead", MessagesReadHandler);
     }
 
     return () => {
@@ -76,6 +90,7 @@ const Router = () => {
       socket.off("MessageRecieved", MessageRecievedACK);
       socket.off("offlineMessages", OfflineMessages);
       socket.off("messagesDelivered", MessagesDeliveredHandler);
+      socket.off("messagesRead", MessagesReadHandler);
     };
   }, [dispatch]);
 

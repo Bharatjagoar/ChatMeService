@@ -214,12 +214,21 @@
     color: rgba(0, 0, 0, 0.45);
 }
 
-/* Delivered: double check, slightly darker grey (blue reserved for future "read") */
+/* Delivered: double check, slightly darker grey */
 .tickDelivered {
     color: rgba(0, 0, 0, 0.55);
 }
 
 .tickDelivered .tickSvg {
+    width: clamp(17px, 4.4vw, 19px);
+}
+
+/* Read: double check, WhatsApp blue */
+.tickRead {
+    color: #53bdeb;
+}
+
+.tickRead .tickSvg {
     width: clamp(17px, 4.4vw, 19px);
 }
 
