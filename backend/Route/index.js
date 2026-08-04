@@ -30,7 +30,7 @@ Router.post(
     // console.log("this is req.user :: ", req.user);
     const token = jwt.sign(
       { id: req.user.id, email: req.user.emailid, UserName: req.user.UserName },
-      "secrate",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" },
     );
 

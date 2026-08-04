@@ -105,6 +105,14 @@ const ChattingWindow = (user) => {
     const lastMessage = conversations[conversations.length - 1];
     const isIncoming = lastMessage?.senderId !== currentLoggedinUser;
 
+    if (isIncoming && lastMessage?.status !== "read") {
+      instance
+        .post(`/markAsRead/${chatId}`, { otherUserId: user.user._id })
+        .catch((err) => {
+          console.log("markAsRead failed:", err);
+        });
+    }
+
     console.log({
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
