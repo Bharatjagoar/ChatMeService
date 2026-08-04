@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import getSocket from "./socket/socket.js";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import App from "./App.jsx"; // Import the App component
@@ -22,6 +22,11 @@ const Router = () => {
   const dispatch = useDispatch();
   const socket = getSocket();
   const currentLoggedinUser = useSelector((state) => state.WhatsApp.userId);
+  const currentUserIdRef = useRef(currentLoggedinUser);
+  useEffect(() => {
+    currentUserIdRef.current = currentLoggedinUser;
+  }, [currentLoggedinUser]);
+
   const [isloading, setisloading] = useState(true);
   const MessageRecievedACK = (data, callback) => {
     console.log("EVENT RECEIVED", data);
@@ -52,7 +57,9 @@ const Router = () => {
 
   const MessagesReadHandler = (data) => {
     console.log("messagesRead received:", data);
-    dispatch(messagesRead({ ...data, currentUserId: currentLoggedinUser }));
+    dispatch(
+      messagesRead({ ...data, currentUserId: currentUserIdRef.current }),
+    );
   };
 
   const ConnectHandler = () => {

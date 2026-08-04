@@ -53,8 +53,19 @@ const chatSlice = createSlice({
       const { chatId, currentUserId } = action.payload;
       const conversation = state.conversations[chatId];
       if (!conversation) return;
-
+      console.log(
+        "messagesRead reducer, currentUserId:",
+        currentUserId,
+        typeof currentUserId,
+      );
       conversation.messages.forEach((msg) => {
+        console.log(
+          "checking msg:",
+          msg.senderId,
+          typeof msg.senderId,
+          msg.senderId === currentUserId,
+          msg.status,
+        );
         if (
           msg.senderId === currentUserId &&
           (msg.status === "sent" || msg.status === "delivered")

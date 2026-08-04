@@ -62,6 +62,11 @@ const ChattingWindow = (user) => {
             }),
           );
         }
+        instance
+          .post(`/markAsRead/${chatId}`, { otherUserId: user.user._id })
+          .catch((err) => {
+            console.log("markAsRead failed:", err);
+          });
       } catch (error) {
         console.error("Error fetching messages:", error);
       }
@@ -146,7 +151,7 @@ const ChattingWindow = (user) => {
       chatId,
       message: Message,
       clientMessageId,
-      time: new Date(),
+      time: new Date().toISOString(),
       status: "sending",
       senderUsername: currentUsername,
       receiverusername: username,
