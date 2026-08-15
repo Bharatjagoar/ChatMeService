@@ -5,9 +5,7 @@ const redis = require("../config/redis");
 // if they're currently connected. Called from both the initial try and the
 // retry loop so this logic only exists once.
 async function notifySender(msg, io) {
-  const { senderId, chatId, messageIds } = JSON.parse(
-    msg.content.toString(),
-  );
+  const { senderId, chatId, messageIds } = JSON.parse(msg.content.toString());
   if (!Array.isArray(messageIds)) {
     return { malformed: true, senderId };
   }

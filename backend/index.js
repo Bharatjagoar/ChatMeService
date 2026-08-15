@@ -67,6 +67,7 @@ app.get("/me", verifyJWT, (req, res) => {
   res.json({ userId: req.user.id, UserName: req.user.UserName });
 });
 app.use("/", require("./Route/index"));
+app.use("/group", require("./Route/groupRoute"));
 // Start the server
 server.listen(port, async () => {
   console.log(`Server running on port ${port}`);

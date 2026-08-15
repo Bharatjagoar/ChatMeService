@@ -2,11 +2,11 @@ const redis = require("../config/redis");
 const { getChannel } = require("../config/RabbitMQ");
 const { json } = require("body-parser");
 const processOfflineMessages = require("./processOfflineMessages");
+const processGroupMemberships = require("./processGroupMemberships");
 
 module.exports = async (socket, io) => {
   try {
     const userid = socket.handshake.query.user;
-    console.log("userid 😅😅:: ", socket.handshake.query.user);
     if (userid) {
       socket.user = userid;
       await redis.hSet(`socket:${userid}`, "socket", socket.id);
@@ -14,6 +14,7 @@ module.exports = async (socket, io) => {
       let res2 = await redis.hGetAll(`socket:${userid}`);
       let channel = await getChannel();
       await processOfflineMessages(userid, socket.id, io);
+      await processGroupMemberships(userid, socket);
     } else {
       console.log("no user ID");
     }

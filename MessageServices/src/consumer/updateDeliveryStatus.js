@@ -29,6 +29,7 @@ async function applyDeliveryUpdate(ids, clientIdByMongoId, channel) {
   }
 
   for (const [senderId, { chatId, messageIds }] of Object.entries(bySender)) {
+    console.log("🙏🙏🙏🙏", messageIds);
     channel.sendToQueue(
       "notifySenderDelivered",
       Buffer.from(JSON.stringify({ senderId, chatId, messageIds })),

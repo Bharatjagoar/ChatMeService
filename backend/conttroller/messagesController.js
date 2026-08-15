@@ -49,27 +49,28 @@ module.exports.Readmessage = async (req, res) => {
 module.exports.ReadConvo = async (req, res) => {
   const channel = await getChannel();
   const correlationId = uuidv4();
-  console.log(req.params);
   let { ChatId } = req.params;
+
   await channel.assertQueue("ReadfromDBMessages", { durable: false });
   await channel.assertQueue("SendChatId", { durable: false });
-  // console.log({ChatId:ChatId});
+
   let obj = { id: ChatId };
   let replyQueue = "ReadfromDBMessages";
+
   channel.sendToQueue("SendChatId", Buffer.from(JSON.stringify(obj)), {
     correlationId: correlationId,
     replyTo: replyQueue,
   });
-  const consumerTag = await channel.consume(replyQueue, async (Message) => {
-    if (Message.properties.correlationId == correlationId) {
-      const messageContent = JSON.parse(Message.content.toString());
 
+  channel.consume(replyQueue, async (Message) => {
+    if (Message.properties.correlationId === correlationId) {
+      const messageContent = JSON.parse(Message.content.toString());
       res.send(messageContent);
       channel.ack(Message);
-      await channel.cancel(consumerTag.consumerTag);
+      // use the consumer tag off the message itself, not the outer var
+      await channel.cancel(Message.fields.consumerTag);
     }
   });
-  // res.send("hellow  world");
 };
 
 module.exports.MarkAsRead = async (req, res) => {

@@ -30,7 +30,6 @@ const ChattingWindow = (user) => {
   let userdata = user.user;
 
   const currentLoggedinUser = useSelector((state) => {
-    console.log(state.WhatsApp);
     return state.WhatsApp.userId;
   });
   const currentUsername = useSelector((state) => state.WhatsApp.userName);
