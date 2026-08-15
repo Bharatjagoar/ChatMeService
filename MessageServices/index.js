@@ -10,6 +10,8 @@ const CreateGroup = require("./src/consumer/CreateGroup");
 const updateDeliveryStatus = require("./src/consumer/updateDeliveryStatus");
 const updateReadStatus = require("./src/consumer/updateReadStatus");
 const GetUserGroups = require("./src/consumer/GetUserGroups");
+const SendGroupMessage = require("./src/consumer/SendGroupMessage");
+const MarkGroupRead = require("./src/consumer/MarkGroupRead.js");
 
 (async () => {
   try {
@@ -21,8 +23,10 @@ const GetUserGroups = require("./src/consumer/GetUserGroups");
     await ReadConversations();
     await ReadConvo();
     await GetUserGroups();
+    await SendGroupMessage();
     await updateDeliveryStatus();
     await updateReadStatus();
+    await MarkGroupRead();
   } catch (error) {
     console.log(error);
   }

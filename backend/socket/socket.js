@@ -82,6 +82,86 @@ module.exports = async (socket, io) => {
     }
   });
 
+  socket.on("sendGroupMessage", async (data, callback) => {
+    try {
+      const channel = await getChannel();
+      const { groupId, senderId, content } = data;
+
+      const { queue: replyQueue } = await channel.assertQueue("", {
+        exclusive: true,
+        autoDelete: true,
+      });
+
+      await channel.assertQueue("sendGroupMessage", { durable: true });
+
+      channel.sendToQueue(
+        "sendGroupMessage",
+        Buffer.from(
+          JSON.stringify({ groupId, senderId, content, replyTo: replyQueue }),
+        ),
+        { persistent: true },
+      );
+
+      const timeoutHandle = setTimeout(async () => {
+        try {
+          await channel.cancel(consumerTag.consumerTag);
+        } catch (e) {}
+        callback({ status: "error", reason: "timeout" });
+      }, 10000);
+
+      const consumerTag = await channel.consume(replyQueue, async (msg) => {
+        if (!msg) return;
+        clearTimeout(timeoutHandle);
+        channel.ack(msg);
+        await channel.cancel(consumerTag.consumerTag);
+
+        const { error, message: savedMessage } = JSON.parse(
+          msg.content.toString(),
+        );
+
+        if (error || !savedMessage) {
+          callback({ status: "error" });
+          return;
+        }
+
+        const onlineUserIds = await redis.sMembers(`group:${groupId}:online`);
+
+        await Promise.allSettled(
+          onlineUserIds
+            .filter((uid) => uid !== senderId)
+            .map(async (uid) => {
+              const socketId = await redis.hGet(`socket:${uid}`, "socket");
+              if (socketId) {
+                io.to(socketId).emit("newGroupMessage", savedMessage);
+              }
+            }),
+        );
+
+        callback({ status: "sent", message: savedMessage });
+      });
+    } catch (error) {
+      console.log("error in sendGroupMessage handler:\n", error);
+      callback({ status: "error" });
+    }
+  });
+
+  socket.on("markGroupRead", async (data) => {
+    // Fire-and-forget: client doesn't wait on this. If it's dropped,
+    // the next viewport read past this point overwrites it anyway,
+    // since markReadUpTo only ever moves the pointer forward.
+    try {
+      const channel = await getChannel();
+      const { groupId, userId, seq } = data;
+      await channel.assertQueue("markGroupRead", { durable: true });
+      channel.sendToQueue(
+        "markGroupRead",
+        Buffer.from(JSON.stringify({ groupId, userId, seq })),
+        { persistent: true },
+      );
+    } catch (error) {
+      console.log("error in markGroupRead handler (non-fatal):\n", error);
+    }
+  });
   socket.on("disconnect", async () => {
     const user = socket.user;
     if (!user) return;
