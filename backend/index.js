@@ -17,6 +17,7 @@ const { Rabbit_MQ_connection } = require("./config/RabbitMQ");
 const verifyJWT = require("./middleware/verifyJWT");
 const notifySenderDelivered = require("./socket/notifySenderDelivered");
 const notifySenderOfRead = require("./socket/notifySenderRead");
+const notifyGroupReadByAll = require("./socket/notifyGroupReadByAll.js");
 // console.log(process.env.keys)
 
 app.use(
@@ -75,6 +76,7 @@ server.listen(port, async () => {
   await Rabbit_MQ_connection();
   await notifySenderDelivered(io);
   await notifySenderOfRead(io);
+  await notifyGroupReadByAll(io);
 });
 
 // Export the io instance to use in other modules
